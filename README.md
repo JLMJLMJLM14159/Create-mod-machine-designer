@@ -3,6 +3,8 @@
 A browser-based 3D planner for automated factories built with the [Create](https://github.com/Creators-of-Create/Create) mod.
 Targets **Create 6.0.11 on Minecraft 1.21.1**, and includes Create trains plus vanilla transport and processing blocks.
 
+**Use it online: <https://jlmjlmjlm14159.github.io/Create-mod-machine-designer/>**
+
 ## Features
 
 - **3D editor.** Place, rotate and remove about 190 blocks, draw belts and chain conveyors between shafts, view one layer at a time, and undo or redo.
