@@ -141,7 +141,18 @@ const B = {
   furnace: d => ({ body: group(casing(d.c, ''), box(0.5, 0.3, 0.04, mat('#ff8c2a', { emissive: '#ff6a00', emissiveIntensity: 0.7 }), 0, -0.15, 0.49), box(0.5, 0.14, 0.04, mat('#222'), 0, 0.2, 0.49)) }),
   campfire: d => ({ body: group(box(0.9, 0.12, 0.2, mat('#6b4f2e'), 0, -0.44, 0.2), box(0.9, 0.12, 0.2, mat('#6b4f2e'), 0, -0.44, -0.2), box(0.2, 0.12, 0.9, mat('#5a4126'), 0.2, -0.32, 0), box(0.2, 0.12, 0.9, mat('#5a4126'), -0.2, -0.32, 0), (() => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.5, 6), mat(d.c, { emissive: d.c, emissiveIntensity: 0.9 })); c.position.y = -0.05; return c; })()) }),
   brew: d => ({ body: group(cyl(0.05, 0.8, mat('#c9a227'), 6, -0.1), box(0.8, 0.08, 0.8, mat(d.c), 0, -0.46, 0), ...[0, 2.1, 4.2].map(a => { const b = cyl(0.1, 0.3, glassMat('#d04080', 0.7), 8, -0.3); b.position.x = Math.cos(a) * 0.3; b.position.z = Math.sin(a) * 0.3; return b; })) }),
-  hopper: d => ({ body: group(box(0.96, 0.4, 0.96, mat(d.c), 0, 0.28, 0), box(0.5, 0.4, 0.5, mat(d.c), 0, -0.1, 0), box(0.24, 0.24, 0.4, mat(shade(d.c, 1.2).getHex()), 0, -0.2, 0.32)) }),
+  // Hoppers keep their bowl upright; only the spout follows the output direction.
+  hopper: (d, b) => {
+    const spoutMat = mat(shade(d.c, 1.2).getHex());
+    const f = b?.f || '-y';
+    let spout;
+    if (f === '-y' || f === '+y') spout = box(0.24, 0.3, 0.24, spoutMat, 0, -0.38, 0);
+    else {
+      const v = { '+x': [1, 0], '-x': [-1, 0], '+z': [0, 1], '-z': [0, -1] }[f];
+      spout = box(v[0] ? 0.36 : 0.24, 0.24, v[1] ? 0.36 : 0.24, spoutMat, v[0] * 0.32, -0.2, v[1] * 0.32);
+    }
+    return { upright: true, body: group(box(0.96, 0.4, 0.96, mat(d.c), 0, 0.28, 0), box(0.86, 0.06, 0.86, mat('#1d1d20'), 0, 0.46, 0), box(0.5, 0.4, 0.5, mat(d.c), 0, -0.1, 0), spout) };
+  },
   chest: d => ({ body: group(box(0.88, 0.62, 0.88, mat(d.c), 0, -0.13, 0), box(0.88, 0.26, 0.88, mat(shade(d.c, 1.1).getHex()), 0, 0.31, 0), box(0.14, 0.2, 0.06, mat('#c0c0c0'), 0, 0.15, 0.46)) }),
   glass: d => ({ body: new THREE.Mesh(new THREE.BoxGeometry(0.99, 0.99, 0.99), glassMat(d.c, 0.45)) }),
   fluid: d => ({ body: box(1, 0.88, 1, glassMat(d.c, 0.6), 0, -0.06, 0) }),
@@ -155,9 +166,9 @@ const B = {
   frog: d => ({ body: group(box(0.7, 0.4, 0.7, mat(d.c), 0, -0.3, 0), box(0.15, 0.15, 0.15, mat('#f0ead8'), 0.18, -0.05, 0.25), box(0.15, 0.15, 0.15, mat('#f0ead8'), -0.18, -0.05, 0.25)) }),
 };
 
-export function buildModel(def) {
+export function buildModel(def, block) {
   const f = B[def.m] || B.box;
-  const r = f(def);
-  return { body: r.body || null, spin: r.spin || null, spinOffset: r.spinOffset || 0 };
+  const r = f(def, block);
+  return { body: r.body || null, spin: r.spin || null, spinOffset: r.spinOffset || 0, upright: !!r.upright };
 }
 export { frameTex };

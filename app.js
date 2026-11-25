@@ -92,10 +92,11 @@ const vec = d => new THREE.Vector3(...DIRS[d]);
 const axisVec = a => new THREE.Vector3(a === 'x' ? 1 : 0, a === 'y' ? 1 : 0, a === 'z' ? 1 : 0);
 function makeMesh(b) {
   const def = BY_ID[b.id]; if (!def) return null;
-  const { body, spin, spinOffset } = buildModel(def);
+  const { body, spin, spinOffset, upright } = buildModel(def, b);
   const g = new THREE.Group(); g.position.set(b.x, b.y, b.z);
   if (body) {
-    if (b.f) body.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), vec(b.f));
+    if (upright) { /* model already built for its direction */ }
+    else if (b.f) body.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), vec(b.f));
     else if (b.axis && def.pl !== 'none') body.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axisVec(b.axis));
     g.add(body);
   }
@@ -195,7 +196,7 @@ function undo() { if (!S.hist.length) return; S.fut.push(snapshot()); load(JSON.
 function redo() { if (!S.fut.length) return; S.hist.push(snapshot()); load(JSON.parse(S.fut.pop())); toast('Redone'); }
 
 // ---------------- orientation ----------------
-const ORDER = { axis: ['x', 'y', 'z'], haxis: ['x', 'z'], facing: ['+z', '+x', '-z', '-x', '+y', '-y'], hfacing: ['+z', '+x', '-z', '-x'] };
+const ORDER = { axis: ['x', 'y', 'z'], haxis: ['x', 'z'], facing: ['+z', '+x', '-z', '-x', '+y', '-y'], hfacing: ['+z', '+x', '-z', '-x'], hopper: ['-y', '+z', '+x', '-z', '-x'] };
 function camHorizontal() {
   const d = new THREE.Vector3(); camera.getWorldDirection(d);
   return Math.abs(d.x) > Math.abs(d.z) ? (d.x > 0 ? '+x' : '-x') : (d.z > 0 ? '+z' : '-z');
@@ -206,6 +207,7 @@ function orientFor(def, normal) {
   if (def.pl === 'axis') auto = normal[1];
   else if (def.pl === 'haxis') auto = normal[1] !== 'y' ? normal[1] : camHorizontal()[1];
   else if (def.pl === 'facing') auto = normal;
+  else if (def.pl === 'hopper') auto = normal[1] === 'y' ? '-y' : opp(normal); // points into the block it was placed against
   else auto = normal[1] !== 'y' ? normal : opp(camHorizontal());
   const i = (list.indexOf(auto) + S.orient) % list.length;
   const v = list[(i + list.length) % list.length];

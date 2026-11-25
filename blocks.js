@@ -237,7 +237,7 @@ B('minecraft:grindstone', 'vprocess', { pl: 'hfacing', m: 'box', c: STONE, g: 'G
 B('minecraft:beehive', 'vprocess', { pl: 'hfacing', m: 'box', c: '#d9b25b', g: 'BH', desc: 'Produces honey; a Spout/drain handles honey in Create.' });
 
 // ---------- Vanilla transport ----------
-B('minecraft:hopper', 'vtransport', { pl: 'facing', m: 'hopper', c: DARK, g: '', desc: 'Moves items from above into the block it points at.', stats: [['Rate', '1 item per 8 ticks (2.5 items/s)'], ['Slots', '5']] });
+B('minecraft:hopper', 'vtransport', { pl: 'hopper', m: 'hopper', c: DARK, g: '', desc: 'Moves items from above into the block it points at.', stats: [['Rate', '1 item per 8 ticks (2.5 items/s)'], ['Slots', '5']] });
 B('minecraft:dropper', 'vtransport', { pl: 'facing', m: 'box', c: STONE, g: 'DRP', desc: 'Pushes one item per redstone pulse into the block in front.', stats: [['Rate', '1 item per pulse (4 tick minimum delay)'], ['Slots', '9']] });
 B('minecraft:dispenser', 'vtransport', { pl: 'facing', m: 'box', c: STONE, g: 'DSP', desc: 'Uses or shoots items on redstone (buckets, bone meal, shulkers).', stats: [['Slots', '9']] });
 B('minecraft:chest', 'vtransport', { pl: 'hfacing', m: 'chest', c: WOOD, g: '', desc: 'Storage.', stats: [['Slots', '27 (54 as a double chest)']] });

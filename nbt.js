@@ -32,7 +32,7 @@ function stateOf(b) {
   const def = BY_ID[b.id];
   const props = {};
   if (def.pl === 'axis' || def.pl === 'haxis') props.axis = S(b.axis || 'y');
-  if ((def.pl === 'facing' || def.pl === 'hfacing') && b.f) {
+  if ((def.pl === 'facing' || def.pl === 'hfacing' || def.pl === 'hopper') && b.f) {
     if (b.id === 'create:mechanical_press' || def.pl === 'hfacing') props.facing = S(MC_DIR[b.f]);
     else props.facing = S(MC_DIR[b.f]);
   }
