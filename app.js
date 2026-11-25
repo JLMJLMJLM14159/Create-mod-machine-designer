@@ -410,7 +410,8 @@ function setTab(t) { S.tab = t; for (const b of document.querySelectorAll('.tab'
 document.querySelector('.tabs').addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) setTab(t.dataset.tab); });
 function renderPane() {
   const p = $('#pane');
-  const fn = { inspect: paneInspect, networks: paneNetworks, production: paneProduction, checks: paneChecks, recipes: paneRecipes }[S.tab];
+  if (S.tab === 'file') { fileMenu(); return; } // the File panel isn't a tab; it draws itself
+  const fn = { inspect: paneInspect, networks: paneNetworks, production: paneProduction, checks: paneChecks, recipes: paneRecipes }[S.tab] || paneInspect;
   const scroll = p.scrollTop;
   p.innerHTML = fn();
   p.scrollTop = scroll;
@@ -767,6 +768,7 @@ $('#pane').addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'rq') { S.recipeQuery = t.value; S.recipeItem = null; S._focusRq = true; renderPane(); S._focusRq = false; return; }
   if (t.id === 'rrpm') { S.recipeRpm = +t.value; const pos = $('#pane').scrollTop; renderPane(); $('#pane').scrollTop = pos; return; }
+  if (t.id === 'jsonBox') { S._jsonBox = t.value; return; }
   if (t.id === 'recFilter') { S._recFilter = t.value; const p = t.selectionStart; renderPane(); const n = $('#recFilter'); n.focus(); n.setSelectionRange(p, p); return; }
 });
 $('#pane').addEventListener('change', e => {
@@ -802,7 +804,7 @@ function fileMenu() {
   <div class="card"><h4>Save &amp; open</h4><div class="row"><button class="btn primary" data-f="json" type="button">Download .json</button><label class="btn" for="openFile" style="cursor:pointer">Open .json…</label><input id="openFile" type="file" accept=".json,application/json" hidden></div>
     <p class="mini" style="margin:0">Or copy the design as text and paste it into another planner:</p>
     <div class="row"><button class="btn" data-f="copy" type="button">Copy design text</button><button class="btn" data-f="paste" type="button">Load pasted text</button></div>
-    <textarea id="jsonBox" placeholder="Paste design text here, then press “Load pasted text”."></textarea></div>
+    <textarea id="jsonBox" placeholder="Paste design text here, then press “Load pasted text”.">${esc(S._jsonBox || '')}</textarea></div>
   <div class="card"><h4>Minecraft schematic</h4><p class="mini" style="margin:0">Exports ${blocks} blocks as a structure <b>.nbt</b> (Minecraft 1.21.1) inside a .zip. Unzip it into your instance’s <code>schematics</code> folder, then load it with Create’s Schematic Table and print it with a Schematicannon. Belts and chains are not included: place them by hand. Multi-block machines (water wheels, tanks, vaults) form themselves in-game.</p>
     <div class="row"><button class="btn primary" data-f="nbt" type="button">Export schematic (.zip)</button></div></div>
   <div class="card"><h4>Controls</h4><dl class="kv"><dt>Place / remove</dt><dd>Left click / right click</dd><dt>Orbit / pan / zoom</dt><dd>Right-drag / middle-drag / wheel</dd><dt>Tools</dt><dd>1 Place · 2 Inspect · 3 Erase · 4 Belt</dd><dt>Rotate</dt><dd>R (Shift+R back)</dd><dt>Layer</dt><dd>[ and ]</dd><dt>Undo / redo</dt><dd>Ctrl+Z / Ctrl+Y</dd><dt>Network colours</dt><dd>N</dd></dl></div>`;
@@ -815,7 +817,7 @@ $('#pane').addEventListener('click', async e => {
     case 'example': pushHist(); load(EXAMPLE); toast('Sample factory loaded.'); fileMenu(); break;
     case 'json': saveFile('factory-design.json', JSON.stringify(serialize(), null, 1)); break;
     case 'copy': {
-      const txt = JSON.stringify(serialize()); const box = $('#jsonBox'); box.value = txt;
+      const txt = JSON.stringify(serialize()); const box = $('#jsonBox'); box.value = txt; S._jsonBox = txt;
       try { await navigator.clipboard.writeText(txt); toast('Design copied.'); } catch { box.select(); toast('Select-all is done: press Ctrl+C to copy.'); }
       break;
     }
