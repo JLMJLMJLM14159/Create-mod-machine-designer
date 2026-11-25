@@ -22,7 +22,9 @@ The app uses ES modules and loads `recipes.json` with `fetch`, so serve the fold
 python3 -m http.server 8000
 ```
 
-Then open <http://localhost:8000>. Three.js 0.160.0 and the fonts load from public CDNs.
+Then open <http://localhost:8000>. Opening `index.html` directly as a file won't work, because browsers block modules and data loaded from `file://`.
+
+Three.js 0.160.0 is bundled in `vendor/three` (MIT licence), so the planner works offline and on networks that block CDNs; only the web fonts come from Google Fonts, with system-font fallbacks. The 3D view needs WebGL. If your browser has it turned off, the page says so, and the recipe book and other panels still work.
 
 ## Where the data comes from
 

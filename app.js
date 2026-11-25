@@ -9,6 +9,7 @@ import { EXAMPLE } from './example.js';
 const { DIRS, key, opp } = SIM;
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const fmt = (n, d = 1) => !isFinite(n) ? '—' : Math.abs(n) >= 1000 ? Math.round(n).toLocaleString('en') : (+n.toFixed(d)).toString();
 
 // ---------------- state ----------------
@@ -33,14 +34,24 @@ const defName = d => DATA.names[d.id] || d.id.split(':')[1].replace(/_/g, ' ').r
 
 // ---------------- three.js ----------------
 const view = $('#view');
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-view.prepend(renderer.domElement);
+// The 3D view needs WebGL. If the browser can't create a context (hardware acceleration off,
+// blocked by policy), keep the rest of the planner working and say how to fix it.
+let renderer = null;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+} catch (e) {
+  renderer = null;
+  window.__showProblem?.('The 3D view could not start because your browser has WebGL turned off or unavailable.',
+    'Turn on hardware acceleration and reload. In Chrome or Edge: Settings → System → “Use graphics acceleration when available”. On a work computer, WebGL may be blocked by your IT policy. The Recipes, Power, Production and Checks tabs still work.');
+}
+const canvasEl = renderer ? renderer.domElement : document.createElement('canvas');
+view.prepend(canvasEl);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
 camera.position.set(19, 17, 24);
-const controls = new OrbitControls(camera, renderer.domElement);
+const controls = new OrbitControls(camera, canvasEl);
 controls.target.set(1, 3, 3);
 controls.enableDamping = true;
 controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
@@ -71,7 +82,7 @@ new MutationObserver(themeColors).observe(document.documentElement, { attributes
 
 function resize() {
   const r = view.getBoundingClientRect();
-  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+  renderer?.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(view);
 
@@ -204,7 +215,7 @@ function orientFor(def, normal) {
 // ---------------- picking ----------------
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
 function pickAt(ev) {
-  const r = renderer.domElement.getBoundingClientRect();
+  const r = canvasEl.getBoundingClientRect();
   ptr.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
   const vis = pickRoot.children.filter(p => p.visible);
@@ -220,11 +231,11 @@ function pickAt(ev) {
   return null;
 }
 let hover = null, down = null;
-renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
-renderer.domElement.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, b: e.button, t: performance.now() }; });
-renderer.domElement.addEventListener('pointermove', e => { hover = pickAt(e); updateGhost(); updateStatus(); });
-renderer.domElement.addEventListener('pointerleave', () => { hover = null; updateGhost(); });
-renderer.domElement.addEventListener('pointerup', e => {
+canvasEl.addEventListener('contextmenu', e => e.preventDefault());
+canvasEl.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, b: e.button, t: performance.now() }; });
+canvasEl.addEventListener('pointermove', e => { hover = pickAt(e); updateGhost(); updateStatus(); });
+canvasEl.addEventListener('pointerleave', () => { hover = null; updateGhost(); });
+canvasEl.addEventListener('pointerup', e => {
   if (!down) return;
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6;
   const btn = down.b; down = null;
@@ -707,7 +718,7 @@ function paneRecipes() {
   }
   const ids = new Set([...BYOUT.keys(), ...BYIN.keys()]);
   const hits = [...ids].filter(id => id[0] !== '#' && nameOf(id).toLowerCase().includes(q)).sort((a, b) => (BYOUT.get(b)?.length || 0) - (BYOUT.get(a)?.length || 0)).slice(0, 60);
-  h += hits.length ? `<div style="display:flex;flex-direction:column;gap:4px">${hits.map(id => `<button class="card pick" data-item="${id}" type="button" style="text-align:left;flex-direction:row;justify-content:space-between"><span>${esc(nameOf(id))}</span><span class="mini">${(BYOUT.get(id) || []).length} ways · ${(BYIN.get(id) || []).length} uses</span></button>`).join('')}</div>` : '<div class="empty">No items match.</div>';
+  h += hits.length ? `<div style="display:flex;flex-direction:column;gap:4px">${hits.map(id => `<button class="card pick" data-item="${id}" type="button" style="text-align:left;flex-direction:row;justify-content:space-between"><span>${esc(nameOf(id))}</span><span class="mini">${plural((BYOUT.get(id) || []).length, 'way')} · ${plural((BYIN.get(id) || []).length, 'use')}</span></button>`).join('')}</div>` : '<div class="empty">No items match.</div>';
   return h;
 }
 
@@ -813,7 +824,7 @@ $('#netBtn').addEventListener('click', () => { S.netView = !S.netView; render();
 $('#layer').addEventListener('input', e => { S.layer = +e.target.value; $('#layerOut').textContent = S.layer >= 32 ? 'all' : 'y ≤ ' + S.layer; applyLayer(); render(); });
 $('#openPal').addEventListener('click', () => $('#palette').classList.toggle('open'));
 $('#openSide').addEventListener('click', () => $('#side').classList.toggle('open'));
-renderer.domElement.addEventListener('pointerdown', () => { $('#palette').classList.remove('open'); $('#side').classList.remove('open'); });
+canvasEl.addEventListener('pointerdown', () => { $('#palette').classList.remove('open'); $('#side').classList.remove('open'); });
 addEventListener('keydown', e => {
   if (e.target.matches('input, textarea, select')) return;
   const k = e.key.toLowerCase();
@@ -852,7 +863,7 @@ function frame() {
       if (net?.running) lm.mesh.userData.tex.offset.y -= (S.solve.speed.get(lm.l.a) || 0) / 24 * dt * 0.5;
     }
   }
-  renderer.render(scene, camera);
+  renderer?.render(scene, camera);
   requestAnimationFrame(frame);
 }
 
@@ -860,8 +871,12 @@ function frame() {
 async function boot() {
   resize(); renderPalette(); render(); frame();
   try {
-    DATA = await (await fetch('recipes.json')).json();
-  } catch (e) { toast('Could not load the recipe data. Recipes and names will be missing.'); }
+    const res = await fetch('recipes.json');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    DATA = await res.json();
+  } catch (e) {
+    window.__showProblem?.('The recipe data (recipes.json) could not be loaded.', 'Recipes and item names will be missing. Make sure recipes.json is next to index.html and that you opened the page through a web server. (' + (e.message || e) + ')');
+  }
   for (const r of DATA.recipes) {
     RECIPE.set(r.id, r);
     for (const o of r.o || []) { if (!BYOUT.has(o[0])) BYOUT.set(o[0], []); BYOUT.get(o[0]).push(r); }
