@@ -38,6 +38,23 @@ def split(lst):
         else: items.append(list(e[1:]))
     return items, fl
 recipes = []
+# Recipes Minecraft computes in code (crafting_special_*): one typical case each, with a note on what varies.
+SPECIALS = {
+    'armor_dye': ([['#minecraft:dyeable', 1], ['minecraft:red_dye', 1]], [['#minecraft:dyeable', 1]], 'Any leather armor or wolf armor plus 1–8 dyes; colours are mixed.'),
+    'banner_duplicate': ([['minecraft:white_banner', 1], ['minecraft:white_banner', 1]], [['minecraft:white_banner', 2]], 'A patterned banner plus a blank banner of the same colour gives two copies; the original is kept.'),
+    'book_cloning': ([['minecraft:written_book', 1], ['minecraft:writable_book', 1]], [['minecraft:written_book', 2]], 'A written book plus 1–8 book and quills makes copies (original or copy only, not copies of copies).'),
+    'decorated_pot': ([['minecraft:brick', 4]], [['minecraft:decorated_pot', 1]], 'Four bricks or pottery sherds in a diamond; each sherd sets one face.'),
+    'firework_rocket': ([['minecraft:paper', 1], ['minecraft:gunpowder', 1]], [['minecraft:firework_rocket', 3]], 'Paper plus 1–3 gunpowder (flight duration 1–3), plus optional firework stars.'),
+    'firework_star': ([['minecraft:gunpowder', 1], ['minecraft:red_dye', 1]], [['minecraft:firework_star', 1]], 'Gunpowder plus 1–8 dyes; add a shape ingredient (fire charge, gold nugget, head, feather) and effects (diamond trail, glowstone twinkle).'),
+    'firework_star_fade': ([['minecraft:firework_star', 1], ['minecraft:blue_dye', 1]], [['minecraft:firework_star', 1]], 'A firework star plus 1–8 dyes adds fade colours.'),
+    'map_cloning': ([['minecraft:filled_map', 1], ['minecraft:map', 1]], [['minecraft:filled_map', 2]], 'A filled map plus 1–8 empty maps makes copies.'),
+    'map_extending': ([['minecraft:filled_map', 1], ['minecraft:paper', 8]], [['minecraft:filled_map', 1]], 'Zooms a map out one level (also done in a cartography table).'),
+    'repair_item': ([['minecraft:iron_pickaxe', 2]], [['minecraft:iron_pickaxe', 1]], 'Two damaged items of the same type combine their durability plus 5%; enchantments are lost.'),
+    'shield_decoration': ([['minecraft:shield', 1], ['minecraft:white_banner', 1]], [['minecraft:shield', 1]], 'Applies any banner’s pattern to a plain shield; the banner is used up.'),
+    'shulker_box_coloring': ([['minecraft:shulker_box', 1], ['minecraft:red_dye', 1]], [['minecraft:red_shulker_box', 1]], 'Any shulker box plus a dye recolours it and keeps its contents.'),
+    'suspicious_stew': ([['minecraft:bowl', 1], ['minecraft:red_mushroom', 1], ['minecraft:brown_mushroom', 1], ['minecraft:poppy', 1]], [['minecraft:suspicious_stew', 1]], 'The flower sets the stew’s effect (poppy: night vision).'),
+    'tipped_arrow': ([['minecraft:arrow', 8], ['minecraft:lingering_potion', 1]], [['minecraft:tipped_arrow', 8]], '8 arrows around a lingering potion give 8 arrows of that effect.'),
+}
 def add_create(d, rid):
     if d['type'].startswith('minecraft:'):
         return add_vanilla(d, rid)
@@ -78,7 +95,18 @@ def add_create(d, rid):
     recipes.append(e)
 def add_vanilla(d, rid):
     t = d['type'].split(':')[1]
-    if t.startswith('crafting_special') or t == 'crafting_decorated_pot' or t == 'smithing_trim':
+    if t == 'smithing_trim':
+        tpl = ing(d['template'])[1]; base = ing(d['base'])[1]; add = ing(d['addition'])[1]
+        recipes.append({'id': rid, 'm': 'smithing', 'i': [[tpl, 1], [base, 1], [add, 1]], 'o': [[base, 1]],
+                        'note': 'Adds this trim pattern to the armor piece; the material sets its colour. The template is used up.'})
+        return
+    if t.startswith('crafting_special') or t == 'crafting_decorated_pot':
+        sp = SPECIALS.get(rid.split(':')[1])
+        if sp:
+            ins, outs, note = sp
+            for i in ins: used.add(i[0])
+            for o in outs: used.add(o[0])
+            recipes.append({'id': rid, 'm': 'crafting', 'shaped': False, 'special': True, 'i': [list(x) for x in ins], 'o': [list(x) for x in outs], 'note': note})
         return
     if t == 'crafting_shaped':
         key = {k: ing(v)[1] for k, v in d['key'].items()}

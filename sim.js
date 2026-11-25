@@ -364,6 +364,7 @@ export function machinesFor(r) {
   switch (r.m) {
     case 'crafting': {
       m.push('crafting');
+      if (r.special) break;
       if (!r.shaped && r.i.reduce((a, x) => a + x[1], 0) >= 2) m.push('auto_shapeless');
       if (r.shaped && r.i.length === 1 && r.p) {
         const n = r.i[0][1], w = r.p[0].length, h = r.p.length;

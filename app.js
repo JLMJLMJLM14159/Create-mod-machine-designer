@@ -30,7 +30,7 @@ const nameOf = id => {
   }
   return DATA.names[id] || BY_ID[id]?.name || id.split(':')[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
-const defName = d => DATA.names[d.id] || d.id.split(':')[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const defName = d => d.name || DATA.names[d.id] || d.id.split(':')[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 // ---------------- three.js ----------------
 const view = $('#view');
@@ -374,7 +374,7 @@ function renderTabsBadge() {
 }
 
 // ---------------- palette ----------------
-const collapsed = new Set(JSON.parse(safeGet('cfp-collapsed') || '[]'));
+const collapsed = new Set(JSON.parse(safeGet('cfp-collapsed') || '["vbuilding","vcolour","vnatural","vfunctional","vtech"]'));
 function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function safeSet(k, v) { try { localStorage.setItem(k, v); } catch { } }
 function renderPalette() {
@@ -432,7 +432,8 @@ function recipeHtml(r, opts = {}) {
     const tot = r.o.reduce((a, o) => a + (o[2] || 1), 0);
     return `<div class="rec">${itemChip(r.i[0][0])}<span class="arrow">→</span>${r.o.map(o => `<span class="it">${esc(nameOf(o[0]))} <b>${fmt((o[2] || 1) / tot * 100, 1)}%</b></span>`).join('')}</div>${steps}`;
   }
-  return `<div class="rec">${ins}${fl}<span class="arrow">→</span>${outs}${fo}</div>${steps}`;
+  const note = r.note ? `<div class="mini">${r.special ? 'Special recipe: ' : ''}${esc(r.note)}</div>` : '';
+  return `<div class="rec">${ins}${fl}<span class="arrow">→</span>${outs}${fo}</div>${steps}${note}`;
 }
 function timingMeta(r, mk, rpm, extra = {}) {
   const M = SIM.MACHINES[mk];
@@ -543,6 +544,8 @@ function paneInspect() {
     if (list.length > shown.length) h += `<p class="mini">Showing ${shown.length} of ${list.length}. Type to narrow down.</p>`;
     h += '</div>';
   }
+  const makes = BYOUT.get(b.id) || [];
+  h += `<div><h4>Getting this block</h4><p class="mini" style="margin:0">${makes.length ? `${plural(makes.length, 'recipe')} ${makes.length === 1 ? 'makes' : 'make'} it.` : 'No recipe makes it: it is mined, found or dropped.'}</p>${makes.length ? `<div class="row" style="margin-top:6px"><button class="btn" data-item="${esc(b.id)}" data-open-book="1" type="button">Open in recipe book</button></div>` : ''}</div>`;
   h += `<div class="row"><button class="btn" data-act="delete" type="button">Remove block</button></div>`;
   return h;
 }
@@ -731,7 +734,7 @@ $('#pane').addEventListener('click', e => {
   if (t.dataset.recipe && b) { pushHist(); b.recipe = t.dataset.recipe; update(); return; }
   if (t.dataset.sel) { S.sel = t.dataset.sel; const x = S.world.get(S.sel); if (x) controls.target.set(x.x, x.y, x.z); setTab('inspect'); render(); return; }
   if (t.dataset.net !== undefined) { const n = S.solve.nets[+t.dataset.net]; if (n?.members[0]) { S.sel = n.members[0].k; S.netView = true; render(); } return; }
-  if (t.dataset.item) { S.recipeItem = t.dataset.item; S.showUses = false; renderPane(); $('#pane').scrollTop = 0; return; }
+  if (t.dataset.item) { S.recipeItem = t.dataset.item; S.showUses = false; if (t.dataset.openBook) setTab('recipes'); else renderPane(); $('#pane').scrollTop = 0; return; }
   switch (t.dataset.act) {
     case 'clearRecipe': pushHist(); delete b.recipe; update(); break;
     case 'delete': eraseAt(S.sel); break;
@@ -869,9 +872,31 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
+// ---------------- vanilla block list ----------------
+const VCATS = [['vbuilding', 'Minecraft: building'], ['vcolour', 'Minecraft: coloured'], ['vnatural', 'Minecraft: natural'],
+  ['vfunctional', 'Minecraft: functional'], ['vtech', 'Minecraft: technical & variants']];
+function addVanillaBlocks(list) {
+  for (const c of VCATS) if (!CATS.some(x => x[0] === c[0])) CATS.push(c);
+  // keep 'Vanilla redstone' grouped with the hand-made redstone entries
+  for (const v of list) {
+    if (BY_ID[v.id]) { BY_ID[v.id].props = v.props; continue; } // hand-made entries keep their stats
+    const states = v.props.filter(p => p !== 'waterlogged').join(', ');
+    const def = { id: v.id, name: v.n, cat: v.cat, pl: v.pl, sh: 'none', rot: 'axis', m: v.m, c: v.c, g: '', vanilla: true, props: v.props,
+      desc: 'Minecraft 1.21.1 block.' + (states ? ' Block states: ' + states + '.' : '') };
+    BLOCKS.push(def); BY_ID[v.id] = def;
+  }
+}
+
 // ---------------- boot ----------------
 async function boot() {
   resize(); renderPalette(); render(); frame();
+  try {
+    const res = await fetch('vanilla-blocks.json');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    addVanillaBlocks(await res.json());
+  } catch (e) {
+    window.__showProblem?.('The Minecraft block list (vanilla-blocks.json) could not be loaded.', 'Only the hand-picked vanilla blocks are available. (' + (e.message || e) + ')');
+  }
   try {
     const res = await fetch('recipes.json');
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -889,6 +914,7 @@ async function boot() {
       for (const id of ids) { if (!BYIN.has(id)) BYIN.set(id, []); if (!BYIN.get(id).includes(r)) BYIN.get(id).push(r); }
     }
   }
+  renderPalette();
   let saved = null; try { saved = JSON.parse(safeGet(STORE) || 'null'); } catch { }
   load(saved && saved.blocks?.length ? saved : EXAMPLE);
   renderPalette();

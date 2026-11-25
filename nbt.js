@@ -31,8 +31,9 @@ const I = v => ({ t: 'int', v }), S = v => ({ t: 'string', v }), C = v => ({ t: 
 function stateOf(b) {
   const def = BY_ID[b.id];
   const props = {};
-  if (def.pl === 'axis' || def.pl === 'haxis') props.axis = S(b.axis || 'y');
-  if ((def.pl === 'facing' || def.pl === 'hfacing' || def.pl === 'hopper') && b.f) {
+  const has = p => !def.props || def.props.includes(p);
+  if ((def.pl === 'axis' || def.pl === 'haxis') && has('axis')) props.axis = S(b.axis || 'y');
+  if ((def.pl === 'facing' || def.pl === 'hfacing' || def.pl === 'hopper') && b.f && has('facing')) {
     if (b.id === 'create:mechanical_press' || def.pl === 'hfacing') props.facing = S(MC_DIR[b.f]);
     else props.facing = S(MC_DIR[b.f]);
   }
