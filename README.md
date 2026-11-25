@@ -11,7 +11,7 @@ Targets **Create 6.0.11 on Minecraft 1.21.1**, and includes Create trains plus v
 - **Kinetic simulation.** Rotation spreads through shafts, cogwheels, large cogwheels, gearboxes, clutches, gearshifts, chain drives, belts and rotation speed controllers using the same rules as Create's `RotationPropagator`. The planner shows stress use against capacity, gear conflicts and overspeed. Steam boilers are modelled from heat, tank size and water supply.
 - **Production rates.** Assign a recipe to a machine to see its operations per minute at its current RPM, plus the net items and fluids per minute for the whole design.
 - **Checks.** Flags common mistakes: a press or spout with nothing below it, a mixer without a basin, a missing burner for a heated recipe, a fan with no catalyst, unpaired crushing wheels, a station that isn't on track, and more.
-- **Recipe book.** 2,656 recipes from Create and every Minecraft 1.21.1 recipe, with processing times at any speed. Recipes Minecraft works out in code (fireworks, armor dye, map copying, armor trims) are shown as a typical example with a note.
+- **Recipe book.** 2,795 recipes with processing times at any speed: every Create recipe that is active with only Create installed, and every Minecraft 1.21.1 recipe including brewing. Recipes the games build in code are included too: all brewing steps, Create's potion mixing, and spout/drain filling and emptying of buckets and bottles. Recipes Minecraft works out from the items used (fireworks, armor dye, map copying, armor trims) are shown as a typical example with a note.
 - **Saving and export.** Save and open designs as `.json`, or export a `.nbt` structure (inside a `.zip`) to load with Create's Schematic Table and print with a Schematicannon. Belts and chains aren't exported; place those by hand.
 
 ## Running it
@@ -30,7 +30,7 @@ Three.js 0.160.0 is bundled in `vendor/three` (MIT licence), so the planner work
 
 - **Stress values** (SU per RPM) come from Create's `AllBlocks.java` and `BuilderTransformers.java` on the `mc1.21.1/dev` branch.
 - **Processing-time formulas** come from Create's block entity code: press, mixer, millstone, crushing wheel, saw, deployer, encased fan, drill, mechanical arm, pump and belt.
-- **Recipes and item tags** come from Create's generated data and the vanilla 1.21.1 data in [misode/mcmeta](https://github.com/misode/mcmeta). Recipes that only apply when other mods are installed are left out.
+- **Recipes and item tags** come from Create's generated data and the vanilla 1.21.1 data in [misode/mcmeta](https://github.com/misode/mcmeta). Recipe conditions are evaluated as in a game with only Create installed, so recipes for other mods' ores and items are left out. Vanilla brewing is written out from Minecraft's brewing code, which isn't part of the data files.
 
 `vanilla-blocks.json` (every block with its states, shape and texture colour) is built by `tools/build_vanilla_blocks.py` from mcmeta's `1.21.1-summary` and `1.21.1-assets` data.
 

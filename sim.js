@@ -355,6 +355,7 @@ export const MACHINES = {
   blasting: { label: 'Blasting', blocks: ['minecraft:blast_furnace'], timing: 'fixed' },
   smoking: { label: 'Smoking', blocks: ['minecraft:smoker'], timing: 'fixed' },
   campfire_cooking: { label: 'Campfire cooking', blocks: ['minecraft:campfire', 'minecraft:soul_campfire'], timing: 'fixed' },
+  brewing: { label: 'Brewing (Brewing Stand)', blocks: ['minecraft:brewing_stand'], timing: 'fixed' },
   smithing: { label: 'Smithing', blocks: ['minecraft:smithing_table'], timing: 'none' },
 };
 

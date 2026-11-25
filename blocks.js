@@ -229,7 +229,7 @@ B('minecraft:crafter', 'vprocess', { pl: 'facing', proc: ['crafting'], m: 'box',
 B('minecraft:crafting_table', 'vprocess', { proc: ['crafting'], m: 'box', c: WOOD, g: 'CT', desc: 'Manual 3×3 crafting.' });
 B('minecraft:stonecutter', 'vprocess', { pl: 'hfacing', proc: ['stonecutting'], m: 'slab', c: STONE, g: 'SC', desc: 'Cuts stone into shapes (manual; a Mechanical Saw automates it).' });
 B('minecraft:smithing_table', 'vprocess', { proc: ['smithing'], m: 'box', c: DARK, g: 'SMT', desc: 'Netherite upgrades (manual; a Deployer can automate smithing in Create).' });
-B('minecraft:brewing_stand', 'vprocess', { m: 'brew', c: '#6b6056', g: '', desc: 'Brews up to 3 potions.', stats: [['Time', '400 ticks (20 s)'], ['Fuel', '1 blaze powder = 20 brews']] });
+B('minecraft:brewing_stand', 'vprocess', { proc: ['brewing'], m: 'brew', c: '#6b6056', g: '', desc: 'Brews up to 3 potions.', stats: [['Time', '400 ticks (20 s)'], ['Fuel', '1 blaze powder = 20 brews']] });
 B('minecraft:composter', 'vprocess', { m: 'basin', c: WOOD, g: '', desc: 'Turns plant matter into bone meal (7 layers).', stats: [['Chance per item', 'Seeds 30% · Wheat/leaves 65% · Melon 65% · Pumpkin 65% · Cake/pie 100%']] });
 B('minecraft:cauldron', 'vprocess', { m: 'basin', c: DARK, g: '', desc: 'Holds water, lava or powder snow. Fills from dripstone or rain.' });
 B('minecraft:anvil', 'vprocess', { pl: 'hfacing', m: 'box', c: DARK, g: 'AN', desc: 'Repairs and renames. Falls on contraptions.' });

@@ -132,11 +132,31 @@ def add_vanilla(d, rid):
     elif t == 'smithing_transform':
         r = res(d['result'])
         recipes.append({'id': rid, 'm': 'smithing', 'i': [[ing(d['template'])[1], 1], [ing(d['base'])[1], 1], [ing(d['addition'])[1], 1]], 'o': [list(r[1:])]})
+# Evaluate NeoForge recipe conditions as they would be in a game with only Create installed.
+LOADED = {'minecraft', 'create', 'neoforge', 'c', 'flywheel', 'ponder'}
+def lang_has(path):
+    return any(f'{k}.{ns}.{path}' in L for L in (clang, mlang) for k in ('item', 'block') for ns in ('minecraft', 'create'))
+def tag_is_empty(tag):
+    ns, path = tag.split(':', 1)
+    if ns != 'c' or '/' not in path: return False
+    cat, mat = path.split('/', 1)
+    cands = {'ores': [f'{mat}_ore', f'deepslate_{mat}_ore'], 'raw_materials': [f'raw_{mat}'], 'storage_blocks': [f'{mat}_block'],
+             'ingots': [f'{mat}_ingot'], 'nuggets': [f'{mat}_nugget'], 'dusts': [f'{mat}_dust', mat], 'gems': [mat], 'plates': [f'{mat}_sheet']}.get(cat, [mat])
+    return not any(lang_has(c) for c in cands)
+def cond_ok(c):
+    t = c.get('type', '').split(':')[-1]
+    if t == 'mod_loaded': return c['modid'] in LOADED
+    if t == 'not': return not cond_ok(c['value'])
+    if t == 'and': return all(cond_ok(x) for x in c['values'])
+    if t == 'or': return any(cond_ok(x) for x in c['values'])
+    if t == 'tag_empty': return tag_is_empty(c['tag'])
+    if t in ('true',): return True
+    if t in ('false',): return False
+    print('unknown condition', c); return False
 skipped = 0
 for f in sorted(glob.glob(CR + '/**/*.json', recursive=True)):
     d = json.load(open(f))
-    conds = d.get('neoforge:conditions', [])
-    if any(c.get('type') == 'neoforge:mod_loaded' or c.get('type') == 'neoforge:not' for c in conds) or '/compat/' in f:
+    if not all(cond_ok(c) for c in d.get('neoforge:conditions', [])):
         skipped += 1; continue
     rid = 'create:' + os.path.relpath(f, CR)[:-5]
     try: add_create(d, rid)
@@ -144,8 +164,75 @@ for f in sorted(glob.glob(CR + '/**/*.json', recursive=True)):
 for f in sorted(glob.glob(VR + '/*.json')):
     d = json.load(open(f))
     add_vanilla(d, 'minecraft:' + os.path.basename(f)[:-5])
+# ---------- code-defined recipes ----------
+# Vanilla brewing (PotionBrewing.addVanillaMixes, 1.21.1). Potions are written as minecraft:potion/<name>.
+BREW = []
+def mix(a, ing_, b): BREW.append((a, 'minecraft:' + ing_, b))
+def start(ing_, b): mix('water', ing_, 'mundane'); mix('awkward', ing_, b)
+mix('water', 'glowstone_dust', 'thick'); mix('water', 'redstone', 'mundane'); mix('water', 'nether_wart', 'awkward')
+mix('awkward', 'breeze_rod', 'wind_charged'); mix('awkward', 'slime_block', 'oozing'); mix('awkward', 'stone', 'infested'); mix('awkward', 'cobweb', 'weaving')
+mix('awkward', 'golden_carrot', 'night_vision'); mix('night_vision', 'redstone', 'long_night_vision')
+mix('night_vision', 'fermented_spider_eye', 'invisibility'); mix('long_night_vision', 'fermented_spider_eye', 'long_invisibility'); mix('invisibility', 'redstone', 'long_invisibility')
+start('magma_cream', 'fire_resistance'); mix('fire_resistance', 'redstone', 'long_fire_resistance')
+start('rabbit_foot', 'leaping'); mix('leaping', 'redstone', 'long_leaping'); mix('leaping', 'glowstone_dust', 'strong_leaping')
+mix('leaping', 'fermented_spider_eye', 'slowness'); mix('long_leaping', 'fermented_spider_eye', 'long_slowness')
+mix('slowness', 'redstone', 'long_slowness'); mix('slowness', 'glowstone_dust', 'strong_slowness')
+mix('awkward', 'turtle_helmet', 'turtle_master'); mix('turtle_master', 'redstone', 'long_turtle_master'); mix('turtle_master', 'glowstone_dust', 'strong_turtle_master')
+mix('swiftness', 'fermented_spider_eye', 'slowness'); mix('long_swiftness', 'fermented_spider_eye', 'long_slowness')
+start('sugar', 'swiftness'); mix('swiftness', 'redstone', 'long_swiftness'); mix('swiftness', 'glowstone_dust', 'strong_swiftness')
+mix('awkward', 'pufferfish', 'water_breathing'); mix('water_breathing', 'redstone', 'long_water_breathing')
+start('glistering_melon_slice', 'healing'); mix('healing', 'glowstone_dust', 'strong_healing')
+mix('healing', 'fermented_spider_eye', 'harming'); mix('strong_healing', 'fermented_spider_eye', 'strong_harming'); mix('harming', 'glowstone_dust', 'strong_harming')
+mix('poison', 'fermented_spider_eye', 'harming'); mix('long_poison', 'fermented_spider_eye', 'harming'); mix('strong_poison', 'fermented_spider_eye', 'strong_harming')
+start('spider_eye', 'poison'); mix('poison', 'redstone', 'long_poison'); mix('poison', 'glowstone_dust', 'strong_poison')
+start('ghast_tear', 'regeneration'); mix('regeneration', 'redstone', 'long_regeneration'); mix('regeneration', 'glowstone_dust', 'strong_regeneration')
+start('blaze_powder', 'strength'); mix('strength', 'redstone', 'long_strength'); mix('strength', 'glowstone_dust', 'strong_strength')
+mix('water', 'fermented_spider_eye', 'weakness'); mix('weakness', 'redstone', 'long_weakness')
+mix('awkward', 'phantom_membrane', 'slow_falling'); mix('slow_falling', 'redstone', 'long_slow_falling')
+
+def potion_name(p, kind='potion'):
+    base = p.replace('long_', '').replace('strong_', '')
+    n = mlang.get(f'item.minecraft.{kind}.effect.{base}', base.replace('_', ' ').title())
+    return n + (' (extended)' if p.startswith('long_') else ' II' if p.startswith('strong_') else '')
+def pid(p): return 'minecraft:potion/' + p
+def fid(p): return 'minecraft:water' if p == 'water' else 'create:potion/' + p
+extra_names = {}
+for a, ingr, b in BREW:
+    for p in (a, b):
+        extra_names[pid(p)] = potion_name(p)
+        if p != 'water': extra_names[fid(p)] = potion_name(p) + ' (fluid)'
+    used.add(ingr)
+    recipes.append({'id': f'minecraft:brewing/{b}_from_{a}', 'm': 'brewing', 'i': [[pid(a), 3], [ingr, 1]], 'o': [[pid(b), 3]], 't': 400,
+                    'note': 'Brews up to 3 bottles at once. 1 blaze powder fuels 20 brews.'})
+    recipes.append({'id': f'create:potion_mixing/{b}_from_{a}', 'm': 'mixing', 'i': [[ingr, 1]], 'f': [[fid(a), 1000]], 'fo': [[fid(b), 1000]], 'h': 'heated',
+                    'note': 'Create turns every brewing recipe into a heated mixing recipe: 1,000 mB of potion (4 bottles) per ingredient.'})
+for kind, add_, frm in (('splash_potion', 'gunpowder', 'potion'), ('lingering_potion', 'dragon_breath', 'splash_potion')):
+    extra_names[f'minecraft:{kind}/any'] = mlang.get(f'item.minecraft.{kind}', kind.replace('_', ' ').title())
+    extra_names[f'minecraft:{frm}/any'] = mlang.get(f'item.minecraft.{frm}', frm.replace('_', ' ').title())
+    used.add('minecraft:' + add_)
+    recipes.append({'id': f'minecraft:brewing/{kind}', 'm': 'brewing', 'i': [[f'minecraft:{frm}/any', 3], ['minecraft:' + add_, 1]], 'o': [[f'minecraft:{kind}/any', 3]], 't': 400,
+                    'note': f'Works for every potion type: adding {add_.replace("_", " ")} turns it into a {kind.replace("_", " ")} of the same effect.'})
+
+# Create's spout and item drain fill/empty any fluid container (GenericItemFilling / GenericItemEmptying).
+CONTAINERS = [('minecraft:bucket', 'minecraft:water_bucket', 'minecraft:water', 1000), ('minecraft:bucket', 'minecraft:lava_bucket', 'minecraft:lava', 1000),
+              ('minecraft:bucket', 'minecraft:milk_bucket', 'minecraft:milk', 1000), ('minecraft:bucket', 'create:honey_bucket', 'create:honey', 1000),
+              ('minecraft:bucket', 'create:chocolate_bucket', 'create:chocolate', 1000), ('minecraft:bucket', 'minecraft:powder_snow_bucket', 'minecraft:powder_snow', 1000),
+              ('minecraft:glass_bottle', 'minecraft:potion/water', 'minecraft:water', 250)]
+extra_names['minecraft:potion/water'] = potion_name('water'); extra_names['minecraft:milk'] = 'Milk'; extra_names['minecraft:powder_snow'] = 'Powder Snow'
+for empty, full, fluid, amt in CONTAINERS:
+    for x in (empty, full, fluid): used.add(x)
+    recipes.append({'id': f'create:generic_filling/{full.split(":")[1].replace("/", "_")}', 'm': 'filling', 'i': [[empty, 1]], 'f': [[fluid, amt]], 'o': [[full, 1]],
+                    'note': 'Built into Create: a spout fills any container that can hold this fluid.'})
+    recipes.append({'id': f'create:generic_emptying/{full.split(":")[1].replace("/", "_")}', 'm': 'emptying', 'i': [[full, 1]], 'o': [[empty, 1]], 'fo': [[fluid, amt]],
+                    'note': 'Built into Create: an item drain empties any fluid container.'})
+recipes.append({'id': 'create:generic_filling/potion_any', 'm': 'filling', 'i': [['minecraft:glass_bottle', 1]], 'f': [['create:potion/any', 250]], 'o': [['minecraft:potion/any', 1]],
+                'note': 'Any potion fluid fills bottles 250 mB at a time (splash and lingering fluids give splash and lingering potions).'})
+recipes.append({'id': 'create:generic_emptying/potion_any', 'm': 'emptying', 'i': [['minecraft:potion/any', 1]], 'o': [['minecraft:glass_bottle', 1]], 'fo': [['create:potion/any', 250]],
+                'note': 'Any potion empties into 250 mB of potion fluid.'})
+extra_names['create:potion/any'] = 'Potion (fluid, any)'
 for u in used:
-    if not u.startswith('#'): names[u] = nm(u)
+    if not u.startswith('#') and u not in extra_names: names[u] = nm(u)
+names.update(extra_names)
 # also name all create blocks/items for palette
 for k, v in clang.items():
     p = k.split('.')
