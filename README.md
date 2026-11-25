@@ -7,10 +7,11 @@ Targets **Create 6.0.11 on Minecraft 1.21.1**, and includes Create trains plus v
 
 ## Features
 
-- **3D editor.** Place, rotate and remove about 1,190 blocks (all 1,057 Minecraft 1.21.1 blocks plus Create's machines), draw belts and chain conveyors between shafts, view one layer at a time, and undo or redo.
+- **3D editor.** Place, rotate and remove every block in both games: all 1,057 Minecraft 1.21.1 blocks and all 643 Create 6.0.11 blocks. Create's ~130 machines and the main vanilla processing blocks are simulated; the rest are placed for building and schematic export. You can also draw belts and chain conveyors between shafts, view one layer at a time, and undo or redo.
 - **Kinetic simulation.** Rotation spreads through shafts, cogwheels, large cogwheels, gearboxes, clutches, gearshifts, chain drives, belts and rotation speed controllers using the same rules as Create's `RotationPropagator`. The planner shows stress use against capacity, gear conflicts and overspeed. Steam boilers are modelled from heat, tank size and water supply.
 - **Production rates.** Assign a recipe to a machine to see its operations per minute at its current RPM, plus the net items and fluids per minute for the whole design.
 - **Checks.** Flags common mistakes: a press or spout with nothing below it, a mixer without a basin, a missing burner for a heated recipe, a fan with no catalyst, unpaired crushing wheels, a station that isn't on track, and more.
+- **Items.** Every item in both games (1,332 Minecraft, 685 Create) is in the recipe book with its stack size and, where it has them, durability, food values, attack damage, armor and rarity.
 - **Recipe book.** 2,795 recipes with processing times at any speed: every Create recipe that is active with only Create installed, and every Minecraft 1.21.1 recipe including brewing. Recipes the games build in code are included too: all brewing steps, Create's potion mixing, and spout/drain filling and emptying of buckets and bottles. Recipes Minecraft works out from the items used (fireworks, armor dye, map copying, armor trims) are shown as a typical example with a note.
 - **Saving and export.** Save and open designs as `.json`, or export a `.nbt` structure (inside a `.zip`) to load with Create's Schematic Table and print with a Schematicannon. Belts and chains aren't exported; place those by hand.
 
@@ -32,7 +33,7 @@ Three.js 0.160.0 is bundled in `vendor/three` (MIT licence), so the planner work
 - **Processing-time formulas** come from Create's block entity code: press, mixer, millstone, crushing wheel, saw, deployer, encased fan, drill, mechanical arm, pump and belt.
 - **Recipes and item tags** come from Create's generated data and the vanilla 1.21.1 data in [misode/mcmeta](https://github.com/misode/mcmeta). Recipe conditions are evaluated as in a game with only Create installed, so recipes for other mods' ores and items are left out. Vanilla brewing is written out from Minecraft's brewing code, which isn't part of the data files.
 
-`vanilla-blocks.json` (every block with its states, shape and texture colour) is built by `tools/build_vanilla_blocks.py` from mcmeta's `1.21.1-summary` and `1.21.1-assets` data.
+`vanilla-blocks.json` (every block with its states, shape and texture colour) is built by `tools/build_vanilla_blocks.py` from mcmeta's `1.21.1-summary` and `1.21.1-assets` data. `create-blocks.json` is built the same way from Create's blockstate files, models and textures by `tools/build_create_blocks.py`. `items.json` is built by `tools/build_items.py` from the vanilla item registry and item components, and from Create's item models and `AllItems.java`.
 
 To rebuild `recipes.json`, check out those two sources and run `tools/build_data.py` (it expects `create/`, `mcdata/` and `dl/` lang files under one folder; see the top of the script):
 

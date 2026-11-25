@@ -19,6 +19,7 @@ const S = {
   solve: null, recipeQuery: '', recipeItem: null, recipeRpm: 128, showUses: false,
 };
 let DATA = { names: {}, recipes: [] }, BYOUT = new Map(), BYIN = new Map(), RECIPE = new Map();
+const ITEMS = new Map(); // every item in Minecraft 1.21.1 and Create, with stack size, durability, food...
 const STORE = 'create-factory-planner-v1';
 
 const nameOf = id => {
@@ -28,7 +29,7 @@ const nameOf = id => {
     const w = parts.reverse().map(p => p.replace(/_/g, ' ')).join(' ');
     return 'Any ' + w.replace(/\b\w/g, c => c.toUpperCase());
   }
-  return DATA.names[id] || BY_ID[id]?.name || id.split(':')[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return DATA.names[id] || ITEMS.get(id)?.n || BY_ID[id]?.name || id.split(':')[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 const defName = d => d.name || DATA.names[d.id] || d.id.split(':')[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -365,7 +366,7 @@ function updateStatus() {
     const sp = r?.speed.get(h.k);
     hv = `<span><b>${esc(defName(BY_ID[h.id]))}</b> ${h.x}, ${h.y}, ${h.z}${sp !== undefined ? ` · ${fmt(sp)} RPM` : ''}</span>`;
   } else if (hover) hv = `<span>${hover.place.join(', ')}</span>`;
-  $('#status').innerHTML = `<span><b>${S.world.size}</b> blocks</span><span><b>${nets.length}</b> powered networks</span><span><b>${DATA.recipes.length.toLocaleString('en')}</b> recipes loaded</span>${hv}`;
+  $('#status').innerHTML = `<span><b>${S.world.size}</b> placed</span><span><b>${nets.length}</b> powered networks</span><span>Game data: <b>${BLOCKS.length.toLocaleString('en')}</b> blocks · <b>${ITEMS.size.toLocaleString('en')}</b> items · <b>${DATA.recipes.length.toLocaleString('en')}</b> recipes</span>${hv}`;
 }
 function renderTabsBadge() {
   const n = S.solve ? runChecks().filter(i => i.sev === 'bad').length : 0;
@@ -374,7 +375,7 @@ function renderTabsBadge() {
 }
 
 // ---------------- palette ----------------
-const collapsed = new Set(JSON.parse(safeGet('cfp-collapsed') || '["vbuilding","vcolour","vnatural","vfunctional","vtech"]'));
+const collapsed = new Set(JSON.parse(safeGet('cfp-collapsed') || '["vbuilding","vcolour","vnatural","vfunctional","vtech","cbuild","cstone","ccolour","ctech"]'));
 function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function safeSet(k, v) { try { localStorage.setItem(k, v); } catch { } }
 function renderPalette() {
@@ -700,16 +701,16 @@ function paneChecks() {
 
 function paneRecipes() {
   const q = S.recipeQuery.trim().toLowerCase();
-  let h = `<div><h2>Recipe book</h2><p class="desc">${DATA.recipes.length.toLocaleString('en')} recipes from Create 6.0.11 and Minecraft 1.21.1, with times at the speed you pick.</p></div>
+  let h = `<div><h2>Recipe book</h2><p class="desc">Every item (${ITEMS.size.toLocaleString('en')}) and recipe (${DATA.recipes.length.toLocaleString('en')}) in Create 6.0.11 and Minecraft 1.21.1, with times at the speed you pick.</p></div>
     <label class="field" for="rq">Item<input id="rq" type="search" placeholder="e.g. brass, iron sheet" value="${esc(S.recipeQuery)}" style="width:190px" autocomplete="off"></label>
     <label class="field" for="rrpm">Machine speed<span class="row"><input id="rrpm" type="range" min="1" max="256" value="${S.recipeRpm}" style="width:120px;accent-color:var(--brass)"><output style="font-family:var(--font-mono);min-width:5em">${S.recipeRpm} RPM</output></span></label>`;
   if (S.recipeItem) {
     const id = S.recipeItem;
     const makes = BYOUT.get(id) || [], uses = BYIN.get(id) || [];
-    h += `<div class="row" style="justify-content:space-between"><h2 style="font-size:15px">${esc(nameOf(id))}</h2><button class="btn" data-act="backItems" type="button">Back</button></div>
+    h += `<div class="row" style="justify-content:space-between"><h2 style="font-size:15px">${esc(nameOf(id))}</h2><button class="btn" data-act="backItems" type="button">Back</button></div>${itemFacts(id)}
       <div class="row"><button class="btn ${!S.showUses ? 'primary' : ''}" data-act="showMakes" type="button">Made by (${makes.length})</button><button class="btn ${S.showUses ? 'primary' : ''}" data-act="showUses" type="button">Used in (${uses.length})</button></div>`;
     const list = (S.showUses ? uses : makes).slice(0, 80);
-    if (!list.length) h += '<div class="empty">Nothing here. This item is gathered, dropped or crafted only by a special recipe.</div>';
+    if (!list.length) h += `<div class="empty">${S.showUses ? 'No recipe uses this item.' : 'No recipe makes this item: it is mined, found in chests, dropped by mobs, traded or creative-only.'}</div>`;
     for (const r of list) {
       const mks = SIM.machinesFor(r);
       h += `<div class="card">${recipeHtml(r)}${mks.map(mk => timingMeta(r, mk, S.recipeRpm)).join('')}<div class="mini">${esc(r.id)}</div></div>`;
@@ -721,15 +722,33 @@ function paneRecipes() {
     h += `<div><h4>Common lookups</h4><div class="rec">${pop.map(id => `<button class="it" data-item="${id}" type="button" style="border:0;cursor:pointer">${esc(nameOf(id))}</button>`).join('')}</div></div>`;
     return h;
   }
-  const ids = new Set([...BYOUT.keys(), ...BYIN.keys()]);
+  const ids = new Set([...ITEMS.keys(), ...BYOUT.keys(), ...BYIN.keys()]);
   const hits = [...ids].filter(id => id[0] !== '#' && nameOf(id).toLowerCase().includes(q)).sort((a, b) => (BYOUT.get(b)?.length || 0) - (BYOUT.get(a)?.length || 0)).slice(0, 60);
   h += hits.length ? `<div style="display:flex;flex-direction:column;gap:4px">${hits.map(id => `<button class="card pick" data-item="${id}" type="button" style="text-align:left;flex-direction:row;justify-content:space-between"><span>${esc(nameOf(id))}</span><span class="mini">${plural((BYOUT.get(id) || []).length, 'way')} · ${plural((BYIN.get(id) || []).length, 'use')}</span></button>`).join('')}</div>` : '<div class="empty">No items match.</div>';
   return h;
 }
 
+function itemFacts(id) {
+  const it = ITEMS.get(id), facts = [];
+  const game = id.startsWith('create:') ? 'Create 6.0.11' : 'Minecraft 1.21.1';
+  if (it) {
+    facts.push(['Game', game], ['Stacks to', it.s]);
+    if (it.d) facts.push(['Durability', it.d.toLocaleString('en')]);
+    if (it.f) facts.push(['Food', `${it.f[0]} hunger, ${it.f[1]} saturation`]);
+    if (it.a) facts.push(['Attack damage', it.a]);
+    if (it.ar) facts.push(['Armor', it.ar]);
+    if (it.r) facts.push(['Rarity', it.r]);
+    if (it.fr) facts.push(['Fire resistant', 'yes']);
+  } else if (BY_ID[id]) facts.push(['Game', game], ['Item', 'none: this block has no item form']);
+  const place = BY_ID[id] && !BY_ID[id].tool ? `<div class="row" style="margin-top:6px"><button class="btn" data-place="${esc(id)}" type="button">Place this block</button></div>` : '';
+  if (!facts.length) return place;
+  return `<div class="card"><dl class="kv">${facts.map(([a, v]) => `<dt>${esc(a)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${place}</div>`;
+}
+
 // pane events
 $('#pane').addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-recipe],[data-sel],[data-net],[data-item]'); if (!t) return;
+  const t = e.target.closest('[data-act],[data-recipe],[data-sel],[data-net],[data-item],[data-place]'); if (!t) return;
+  if (t.dataset.place) { S.cur = t.dataset.place; S.orient = 0; S.tool = 'place'; renderPalette(); render(); toast(nameOf(S.cur) + ' selected: click in the view to place it.'); return; }
   const b = S.sel && S.world.get(S.sel);
   if (t.dataset.recipe && b) { pushHist(); b.recipe = t.dataset.recipe; update(); return; }
   if (t.dataset.sel) { S.sel = t.dataset.sel; const x = S.world.get(S.sel); if (x) controls.target.set(x.x, x.y, x.z); setTab('inspect'); render(); return; }
@@ -875,14 +894,14 @@ function frame() {
 // ---------------- vanilla block list ----------------
 const VCATS = [['vbuilding', 'Minecraft: building'], ['vcolour', 'Minecraft: coloured'], ['vnatural', 'Minecraft: natural'],
   ['vfunctional', 'Minecraft: functional'], ['vtech', 'Minecraft: technical & variants']];
-function addVanillaBlocks(list) {
-  for (const c of VCATS) if (!CATS.some(x => x[0] === c[0])) CATS.push(c);
-  // keep 'Vanilla redstone' grouped with the hand-made redstone entries
+const CCATS = [['cbuild', 'Create: building & casings'], ['cstone', 'Create: stone types & ores'], ['ccolour', 'Create: coloured'], ['ctech', 'Create: other & technical']];
+function addBlockList(list, cats, game) {
+  for (const c of cats) if (!CATS.some(x => x[0] === c[0])) CATS.push(c);
   for (const v of list) {
-    if (BY_ID[v.id]) { BY_ID[v.id].props = v.props; continue; } // hand-made entries keep their stats
+    if (BY_ID[v.id]) { BY_ID[v.id].props = v.props; continue; } // hand-made entries keep their stats and simulation
     const states = v.props.filter(p => p !== 'waterlogged').join(', ');
-    const def = { id: v.id, name: v.n, cat: v.cat, pl: v.pl, sh: 'none', rot: 'axis', m: v.m, c: v.c, g: '', vanilla: true, props: v.props,
-      desc: 'Minecraft 1.21.1 block.' + (states ? ' Block states: ' + states + '.' : '') };
+    const def = { id: v.id, name: v.n, cat: v.cat, pl: v.pl, sh: 'none', rot: 'axis', m: v.m, c: v.c, g: '', generic: true, props: v.props,
+      desc: game + ' block.' + (states ? ' Block states: ' + states + '.' : '') + ' Placed for building and schematic export; it is not simulated.' };
     BLOCKS.push(def); BY_ID[v.id] = def;
   }
 }
@@ -890,13 +909,13 @@ function addVanillaBlocks(list) {
 // ---------------- boot ----------------
 async function boot() {
   resize(); renderPalette(); render(); frame();
-  try {
-    const res = await fetch('vanilla-blocks.json');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    addVanillaBlocks(await res.json());
-  } catch (e) {
-    window.__showProblem?.('The Minecraft block list (vanilla-blocks.json) could not be loaded.', 'Only the hand-picked vanilla blocks are available. (' + (e.message || e) + ')');
-  }
+  const getJson = async f => { const r = await fetch(f); if (!r.ok) throw new Error(f + ': HTTP ' + r.status); return r.json(); };
+  const [vb, cb, it] = await Promise.allSettled([getJson('vanilla-blocks.json'), getJson('create-blocks.json'), getJson('items.json')]);
+  if (vb.status === 'fulfilled') addBlockList(vb.value, VCATS, 'Minecraft 1.21.1');
+  if (cb.status === 'fulfilled') addBlockList(cb.value, CCATS, 'Create 6.0.11');
+  if (it.status === 'fulfilled') for (const i of it.value) ITEMS.set(i.id, i);
+  const failed = [vb, cb, it].filter(x => x.status === 'rejected').map(x => x.reason?.message || x.reason);
+  if (failed.length) window.__showProblem?.('Some planner data could not be loaded.', failed.join('; ') + '. The rest of the planner still works.');
   try {
     const res = await fetch('recipes.json');
     if (!res.ok) throw new Error('HTTP ' + res.status);
